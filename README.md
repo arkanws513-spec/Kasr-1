@@ -6,24 +6,30 @@ Kasr-1 is a lightweight, bilingual Arabic/English chat application backed by a *
 
 - **Chat UI:** responsive Arabic/English interface in `public/index.html`.
 - **API:** FastAPI routes for chat, health, and configuration status.
-- **Inference adapter:** OpenAI-compatible API client; configured for Groq by default.
+- **Inference adapter:** OpenAI-compatible API client, configured for Hugging Face Inference Providers by default.
 - **Hosting:** Docker image can be built and deployed through Ron Cloud's container runner or another Docker host.
 - **Secrets:** provider keys and the private access token are supplied through environment variables; no real secrets belong in Git.
 
-The first deployment uses one cloud inference provider. This keeps the app simple and lets us verify real model responses before adding optional providers or persistent server-side memory.
+## Default inference provider
 
-## Current default model
+The default API endpoint is Hugging Face's OpenAI-compatible router: `https://router.huggingface.co/v1`.
+The default model is `openai/gpt-oss-120b:fastest`, which asks the router to select an available provider for that model. Model availability, account permissions, credits, quotas, and pricing can change; do not assume API calls are free. Review the current [Inference Providers documentation](https://huggingface.co/docs/inference-providers/en/index) and [model catalog](https://huggingface.co/models).
 
-The default is `openai/gpt-oss-120b` on Groq, selected from the provider's published model catalog. Provider model IDs, access, quotas, and pricing can change. If it is unavailable to your account, set `INFERENCE_MODEL` to another currently supported model. Check the current catalog at <https://console.groq.com/docs/models>.
+### Create a Hugging Face token
 
-The default provider URL is `https://api.groq.com/openai/v1`. The adapter also accepts another OpenAI-compatible provider by changing `INFERENCE_BASE_URL`, `INFERENCE_API_KEY`, and `INFERENCE_MODEL`.
+1. Sign in at <https://huggingface.co/settings/tokens>.
+2. Create a token with permission to **Make calls to Inference Providers**.
+3. Add the token to the deployment as `INFERENCE_API_KEY` (or `HF_TOKEN`).
+4. Confirm your account has access/credits for the chosen provider and model.
+
+If token creation or inference access is blocked for the account, choose another supported provider and configure its endpoint and model below.
 
 ## Run locally
 
 Requires Python 3.11+.
 
 1. Copy `.env.example` to `.env`.
-2. Add a valid provider key to `INFERENCE_API_KEY`. For compatibility, `GROQ_API_KEY` is also recognized.
+2. Add a valid provider token to `INFERENCE_API_KEY`.
 3. Replace `KASR_ACCESS_TOKEN` with a random secret of at least 32 characters. The interface asks for this token and keeps it in session storage for the current browser session.
 4. Install dependencies: `python -m pip install -r requirements.txt`.
 5. Start the app: `python app.py`.
@@ -35,15 +41,15 @@ Without a provider API key, chat returns HTTP 503. Without a configured access t
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `INFERENCE_API_KEY` | none | Secret key for the inference provider |
-| `INFERENCE_BASE_URL` | Groq OpenAI-compatible URL | Provider API base URL |
-| `INFERENCE_MODEL` | `openai/gpt-oss-120b` | Model ID from the provider's current catalog |
+| `INFERENCE_API_KEY` | none | Secret token for the inference provider |
+| `INFERENCE_BASE_URL` | Hugging Face router URL | Provider API base URL |
+| `INFERENCE_MODEL` | `openai/gpt-oss-120b:fastest` | Model ID from the provider's current catalog |
 | `KASR_ACCESS_TOKEN` | none | Private access token; at least 32 characters |
 | `MAX_INPUT_CHARS` | `20000` | Maximum characters per message |
 | `MAX_HISTORY_MESSAGES` | `30` | Maximum conversation messages accepted |
 | `MAX_OUTPUT_TOKENS` | `2048` | Response token limit |
 | `REQUEST_TIMEOUT_SECONDS` | `60` | Provider request timeout |
-| `CORS_ORIGINS` | `*` behavior when empty | Comma-separated browser origins; set explicitly for production |
+| `CORS_ORIGINS` | `*` when empty | Comma-separated browser origins; set explicitly for production |
 
 For a public production deployment, set `CORS_ORIGINS` to the exact frontend origins. Keep both secrets in Ron Cloud's deployment secrets/environment settings, not in the repository.
 
@@ -68,7 +74,7 @@ Successful response:
 ```json
 {
   "response": "القاهرة.",
-  "model": "openai/gpt-oss-120b"
+  "model": "openai/gpt-oss-120b:fastest"
 }
 ```
 
@@ -81,8 +87,8 @@ docker build -t kasr-1 .
 docker run --rm -p 8000:8000 \
   -e INFERENCE_API_KEY="$INFERENCE_API_KEY" \
   -e KASR_ACCESS_TOKEN="$KASR_ACCESS_TOKEN" \
-  -e INFERENCE_BASE_URL="https://api.groq.com/openai/v1" \
-  -e INFERENCE_MODEL="openai/gpt-oss-120b" \
+  -e INFERENCE_BASE_URL="https://router.huggingface.co/v1" \
+  -e INFERENCE_MODEL="openai/gpt-oss-120b:fastest" \
   kasr-1
 ```
 
