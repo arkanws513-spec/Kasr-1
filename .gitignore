@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+checkpoints/
+data/*.pt
+data/*.pth
+data/*.bin
+data/*.jsonl
+data/corpus.txt
+*.log
+.pytest_cache/
+.DS_Store
