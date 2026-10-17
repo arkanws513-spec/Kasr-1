@@ -25,7 +25,7 @@ Train from random initialization (this can take a long time on CPU):
 
     python -m training.train --data data/corpus.txt --steps 3000 --batch-size 8 --block-size 256
 
-The training script periodically saves checkpoints/kaser1.pt, including model configuration and optimizer state. Resume with --resume. After base training, prepare prompt/response examples in JSONL and run `python -m training.sft --data data/conversations.jsonl --checkpoint checkpoints/kaser1.pt --out checkpoints/kaser1-sft.pt --steps 1000`. This second stage masks prompt tokens and trains on answer tokens. See training/SFT_GUIDE.md for formats and resume instructions. More data and longer training are necessary for coherent dialogue; lower training loss alone does not prove conversational quality.
+The training script periodically saves checkpoints/kaser1.pt, including model configuration and optimizer state. Resume with --resume. Prepare prompt/response examples in JSONL, then run `python -m training.pipeline --corpus data/corpus.txt --conversations data/conversations.jsonl --base-steps 3000 --sft-steps 1000` to execute both stages in order. The pipeline stops if either stage fails. See training/SFT_GUIDE.md for data formats and resume instructions. More data and longer training are necessary for coherent dialogue; lower training loss alone does not prove conversational quality.
 
 Start the inference service after a checkpoint exists:
 
