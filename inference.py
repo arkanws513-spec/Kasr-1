@@ -1,7 +1,7 @@
 """Cloud inference adapter for Kasr-1.
 
-Uses an OpenAI-compatible API (Groq by default). The model is hosted by the
-provider; this project does not download or train model weights.
+Uses Hugging Face's OpenAI-compatible Inference Providers router by default.
+The model is hosted by the provider; this project does not download or train model weights.
 """
 from __future__ import annotations
 
@@ -36,7 +36,6 @@ def build_messages(
     ).strip()
 
     messages: list[dict[str, str]] = [{"role": "system", "content": system}]
-    # Keep the latest turns so the prompt remains bounded.
     for item in history[-max_history_messages:]:
         role = item.get("role")
         content = item.get("content", "")
@@ -50,11 +49,17 @@ def build_messages(
 
 class CloudInferenceEngine:
     def __init__(self) -> None:
-        self.api_key = os.getenv("INFERENCE_API_KEY") or os.getenv("GROQ_API_KEY")
+        self.api_key = (
+            os.getenv("INFERENCE_API_KEY")
+            or os.getenv("HF_TOKEN")
+            or os.getenv("GROQ_API_KEY")
+        )
         self.base_url = os.getenv(
-            "INFERENCE_BASE_URL", "https://api.groq.com/openai/v1"
+            "INFERENCE_BASE_URL", "https://router.huggingface.co/v1"
         ).rstrip("/")
-        self.model = os.getenv("INFERENCE_MODEL", "openai/gpt-oss-120b")
+        self.model = os.getenv(
+            "INFERENCE_MODEL", "openai/gpt-oss-120b:fastest"
+        )
         self.timeout = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "60"))
         self.max_output_tokens = int(os.getenv("MAX_OUTPUT_TOKENS", "2048"))
         self.max_history_messages = int(os.getenv("MAX_HISTORY_MESSAGES", "30"))
@@ -107,11 +112,10 @@ class CloudInferenceEngine:
                 "Could not connect to the inference provider."
             ) from exc
         except APIStatusError as exc:
-            # Never send provider response bodies or secrets to the client.
             if exc.status_code in (401, 403):
-                message = "The inference provider rejected the API key or model access."
+                message = "The inference provider rejected the API token or model access."
             elif exc.status_code == 429:
-                message = "The inference provider rate limit was reached. Please wait and retry."
+                message = "The inference provider rate limit or credit allowance was reached. Please check your provider account."
             elif exc.status_code == 404:
                 message = "The configured model was not found. Check INFERENCE_MODEL against the provider's current model list."
             else:
