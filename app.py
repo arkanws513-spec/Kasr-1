@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import hmac
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
@@ -70,18 +71,35 @@ app.add_middleware(
 )
 
 
+def authorize_chat(authorization: str | None) -> None:
+    """Fail closed unless a server-side access token is configured and supplied."""
+    expected = os.getenv("KASR_ACCESS_TOKEN", "")
+    if len(expected) < 32:
+        raise HTTPException(
+            status_code=503,
+            detail="Chat access is not configured. Set a long KASR_ACCESS_TOKEN in deployment secrets.",
+        )
+    supplied = ""
+    if authorization and authorization.startswith("Bearer "):
+        supplied = authorization[7:].strip()
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing Kasr-1 access token.")
+
+
 @app.get("/api/status")
 def status() -> dict[str, object]:
+    access_configured = len(os.getenv("KASR_ACCESS_TOKEN", "")) >= 32
     return {
         "app": "Kasr-1",
-        "status": "ready" if engine.configured else "needs_configuration",
+        "status": "ready" if engine.configured and access_configured else "needs_configuration",
         "provider": engine.base_url,
         "model": engine.model,
         "api_key_configured": engine.configured,
+        "access_token_configured": access_configured,
         "note": (
-            "This confirms app configuration only; it does not prove the provider is reachable."
-            if engine.configured
-            else "Set INFERENCE_API_KEY in deployment secrets to enable chat."
+            "Configuration is present; this does not prove the provider is reachable."
+            if engine.configured and access_configured
+            else "Set INFERENCE_API_KEY and a KASR_ACCESS_TOKEN of at least 32 characters in deployment secrets."
         ),
     }
 
@@ -92,7 +110,11 @@ def health() -> dict[str, str]:
 
 
 @app.post("/api/chat")
-def chat(request: ChatRequest) -> dict[str, str]:
+def chat(
+    request: ChatRequest,
+    authorization: str | None = Header(default=None),
+) -> dict[str, str]:
+    authorize_chat(authorization)
     history = [{"role": item.role, "content": item.content} for item in request.messages]
     if not any(item["role"] == "user" for item in history):
         raise HTTPException(status_code=422, detail="At least one user message is required.")
