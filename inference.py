@@ -6,11 +6,8 @@ provider; this project does not download or train model weights.
 from __future__ import annotations
 
 import os
-from typing import Literal
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
-
-ChatRole = Literal["user", "assistant"]
 
 
 class InferenceConfigurationError(RuntimeError):
@@ -26,17 +23,20 @@ def build_messages(
     system_prompt: str | None = None,
     max_history_messages: int = 30,
 ) -> list[dict[str, str]]:
-    """Validate and normalize conversation history before sending it upstream."""
-    system = (system_prompt or os.getenv(
-        "SYSTEM_PROMPT",
-        "You are Kasr-1, a helpful AI assistant. Reply in the language used by "
-        "the user (Arabic or English) unless asked otherwise. Be accurate, clear, "
-        "and honest about uncertainty. Never claim to have performed actions you "
-        "did not perform.",
-    )).strip()
+    """Normalize conversation history and add the assistant's system prompt."""
+    system = (
+        system_prompt
+        or os.getenv(
+            "SYSTEM_PROMPT",
+            "You are Kasr-1, a helpful AI assistant. Reply in the language used by "
+            "the user (Arabic or English) unless asked otherwise. Be accurate, clear, "
+            "and honest about uncertainty. Never claim to have performed actions you "
+            "did not perform.",
+        )
+    ).strip()
 
     messages: list[dict[str, str]] = [{"role": "system", "content": system}]
-    # Keep the most recent turns so old context cannot grow without bound.
+    # Keep the latest turns so the prompt remains bounded.
     for item in history[-max_history_messages:]:
         role = item.get("role")
         content = item.get("content", "")
@@ -78,13 +78,11 @@ class CloudInferenceEngine:
     ) -> str:
         if self.client is None:
             raise InferenceConfigurationError(
-                "Inference API key is missing. Configure INFERENCE_API_KEY in the deployment secrets."
+                "Inference API key is missing. Configure INFERENCE_API_KEY in deployment secrets."
             )
 
-        messages = build_messages(
-            history, system_prompt, self.max_history_messages
-        )
-        if len(messages) < 2:
+        messages = build_messages(history, system_prompt, self.max_history_messages)
+        if not any(message["role"] == "user" for message in messages):
             raise ValueError("At least one non-empty user message is required.")
 
         try:
@@ -92,7 +90,7 @@ class CloudInferenceEngine:
                 model=self.model,
                 messages=messages,
                 temperature=0.6,
-                max_tokens=self.max_output_tokens,
+                max_completion_tokens=self.max_output_tokens,
             )
             answer = completion.choices[0].message.content
             if not answer or not answer.strip():
@@ -109,7 +107,7 @@ class CloudInferenceEngine:
                 "Could not connect to the inference provider."
             ) from exc
         except APIStatusError as exc:
-            # Do not return provider response bodies: they may contain sensitive details.
+            # Never send provider response bodies or secrets to the client.
             if exc.status_code in (401, 403):
                 message = "The inference provider rejected the API key or model access."
             elif exc.status_code == 429:
