@@ -8,7 +8,7 @@ Kasr-1 is a lightweight, bilingual Arabic/English chat application backed by a *
 - **API:** FastAPI routes for chat, health, and configuration status.
 - **Inference adapter:** OpenAI-compatible API client; configured for Groq by default.
 - **Hosting:** Docker image can be built and deployed through Ron Cloud's container runner or another Docker host.
-- **Secrets:** provider keys are supplied through environment variables; no real key belongs in Git.
+- **Secrets:** provider keys and the private access token are supplied through environment variables; no real secrets belong in Git.
 
 The first deployment uses one cloud inference provider. This keeps the app simple and lets us verify real model responses before adding optional providers or persistent server-side memory.
 
@@ -24,11 +24,12 @@ Requires Python 3.11+.
 
 1. Copy `.env.example` to `.env`.
 2. Add a valid provider key to `INFERENCE_API_KEY`. For compatibility, `GROQ_API_KEY` is also recognized.
-3. Install dependencies: `python -m pip install -r requirements.txt`.
-4. Start the app: `python app.py`.
-5. Open <http://localhost:8000>.
+3. Replace `KASR_ACCESS_TOKEN` with a random secret of at least 32 characters. The interface asks for this token and keeps it in session storage for the current browser session.
+4. Install dependencies: `python -m pip install -r requirements.txt`.
+5. Start the app: `python app.py`.
+6. Open <http://localhost:8000>.
 
-Without an API key, the health route and interface still load, but `POST /api/chat` returns HTTP 503. This is intentional; it avoids pretending the model is working when it is not configured.
+Without a provider API key, chat returns HTTP 503. Without a configured access token, chat fails closed with HTTP 503. This avoids leaving a public endpoint open to consume your provider quota.
 
 ## Environment variables
 
@@ -37,19 +38,22 @@ Without an API key, the health route and interface still load, but `POST /api/ch
 | `INFERENCE_API_KEY` | none | Secret key for the inference provider |
 | `INFERENCE_BASE_URL` | Groq OpenAI-compatible URL | Provider API base URL |
 | `INFERENCE_MODEL` | `openai/gpt-oss-120b` | Model ID from the provider's current catalog |
+| `KASR_ACCESS_TOKEN` | none | Private access token; at least 32 characters |
 | `MAX_INPUT_CHARS` | `20000` | Maximum characters per message |
 | `MAX_HISTORY_MESSAGES` | `30` | Maximum conversation messages accepted |
 | `MAX_OUTPUT_TOKENS` | `2048` | Response token limit |
 | `REQUEST_TIMEOUT_SECONDS` | `60` | Provider request timeout |
 | `CORS_ORIGINS` | `*` behavior when empty | Comma-separated browser origins; set explicitly for production |
 
-For a public production deployment, set `CORS_ORIGINS` to the exact frontend origins. Keep API keys in Ron Cloud's deployment secrets/environment settings, not in the repository.
+For a public production deployment, set `CORS_ORIGINS` to the exact frontend origins. Keep both secrets in Ron Cloud's deployment secrets/environment settings, not in the repository.
 
 ## API
 
 - `GET /api/health` — process health only.
-- `GET /api/status` — reports configured provider/model and whether a key is present. It does **not** make a live model request.
-- `POST /api/chat` — body example:
+- `GET /api/status` — reports provider and access-token configuration. It does **not** make a live model request.
+- `POST /api/chat` — requires `Authorization: Bearer <KASR_ACCESS_TOKEN>`.
+
+Request body:
 
 ```json
 {
@@ -76,12 +80,13 @@ Build and run:
 docker build -t kasr-1 .
 docker run --rm -p 8000:8000 \
   -e INFERENCE_API_KEY="$INFERENCE_API_KEY" \
+  -e KASR_ACCESS_TOKEN="$KASR_ACCESS_TOKEN" \
   -e INFERENCE_BASE_URL="https://api.groq.com/openai/v1" \
   -e INFERENCE_MODEL="openai/gpt-oss-120b" \
   kasr-1
 ```
 
-In Ron Cloud, deploy this repository as a Docker application and set the environment variables in the deployment configuration. Do not put the key in a Dockerfile or commit it to Git. A successful container build is not the same as a successful live model call; verify both health and a real chat response after deployment.
+In Ron Cloud, deploy this repository as a Docker application and set both secrets in the deployment configuration. Do not put secrets in a Dockerfile or commit them to Git. A successful container build is not the same as a successful live model call; verify both health and a real chat response after deployment.
 
 ## Tests
 
@@ -89,7 +94,7 @@ In Ron Cloud, deploy this repository as a Docker application and set the environ
 python -m pytest -q
 ```
 
-The included unit tests cover message normalization without needing a provider key. A live inference smoke test requires valid provider credentials and may consume account quota.
+Unit tests cover message normalization and access-token checks without needing a provider key. A live inference smoke test requires valid provider credentials and may consume account quota.
 
 ## Current limitations
 
@@ -97,4 +102,4 @@ The included unit tests cover message normalization without needing a provider k
 - Conversation history is currently kept in the browser's local storage; it is not a cross-device account memory.
 - The current release uses one configured provider per deployment, not automatic multi-provider failover.
 - API status is configuration status, not proof that the provider is reachable.
-- Authentication and per-user server-side quotas should be added before exposing the API publicly to multiple users.
+- The shared access token is suitable for initial private testing; before a multi-user public launch, add user accounts, per-user quotas, and stronger abuse controls.
