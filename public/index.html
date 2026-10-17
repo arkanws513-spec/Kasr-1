@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10131d">
+<title>Kasr-1 · AI Chat</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0e15;--panel:#121724;--panel2:#171e2d;--line:#293247;--text:#f3f5fb;--muted:#a5aec2;--accent:#8b9cff;--accent2:#b4a4ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 75% -10%,#222a4c 0,transparent 45%),var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;display:flex;justify-content:center}
+.shell{width:min(100%,980px);min-height:100vh;display:flex;flex-direction:column;padding:18px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 2px 18px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px}.mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#a6b2ff,#8265d8);display:grid;place-items:center;color:#10131d;font-weight:900;font-size:20px;box-shadow:0 8px 28px #756be444}.brand h1{font-size:19px;margin:0;letter-spacing:.2px}.brand p{margin:0;color:var(--muted);font-size:12px}
+.actions{display:flex;gap:8px;align-items:center}button,select{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:9px 12px;cursor:pointer}button:hover{border-color:var(--accent)}button:disabled{opacity:.5;cursor:wait}
+.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px;padding:13px 3px}.dot{width:7px;height:7px;border-radius:50%;background:#e6b85c}.dot.ok{background:#60d5a1}.intro{margin:auto auto 18px;text-align:center;max-width:620px;padding:30px 8px 8px}.intro .orb{width:70px;height:70px;border:1px solid #444c70;background:linear-gradient(145deg,#202844,#15192b);border-radius:24px;display:grid;place-items:center;font-size:30px;margin:0 auto 18px;box-shadow:0 18px 55px #0004}.intro h2{font-size:clamp(24px,4vw,34px);line-height:1.25;margin:0 0 10px}.intro p{color:var(--muted);margin:0}
+#messages{display:flex;flex-direction:column;gap:14px;padding:14px 0 24px;flex:1}.msg{max-width:min(86%,760px);padding:13px 16px;border:1px solid var(--line);border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere}.msg.user{align-self:flex-start;background:#252d45;border-bottom-left-radius:5px}.msg.assistant{align-self:flex-end;background:var(--panel);border-bottom-right-radius:5px}.msg .who{font-size:11px;color:var(--muted);margin-bottom:4px}.msg .body{unicode-bidi:plaintext}.error{border-color:#8e4d5b;color:#ffccd3}
+.composer-wrap{position:sticky;bottom:0;padding:12px 0 4px;background:linear-gradient(transparent,var(--bg) 20%)}.composer{display:flex;gap:10px;align-items:flex-end;border:1px solid #39435d;background:#141a28;padding:10px;border-radius:18px;box-shadow:0 10px 36px #0004}.composer textarea{flex:1;resize:vertical;min-height:48px;max-height:180px;border:0;outline:0;background:transparent;color:var(--text);font:inherit;padding:8px;line-height:1.5}.send{min-width:88px;background:linear-gradient(135deg,#a6b2ff,#9882f3);color:#10131d;font-weight:750;border:0;padding:12px}.hint{text-align:center;color:#78839b;font-size:11px;padding:8px 0 2px}.empty{color:var(--muted);font-size:14px;text-align:center;padding:18px}
+@media(max-width:560px){.shell{padding:10px}.brand h1{font-size:17px}.actions button{padding:8px;font-size:12px}.msg{max-width:94%}.send{min-width:65px;padding:11px 9px}.intro{padding-top:22px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div class="brand"><div class="mark">K</div><div><h1>Kasr-1</h1><p id="tagline">مساعد ذكي — استدلال سحابي</p></div></div>
+  <div class="actions"><select id="language" aria-label="Language"><option value="ar">العربية</option><option value="en">English</option></select><button id="clear">محادثة جديدة</button></div>
+</header>
+<div class="status"><span id="dot" class="dot"></span><span id="statusText">جارٍ فحص الخدمة…</span></div>
+<section class="intro" id="intro"><div class="orb">✦</div><h2 id="welcome">خلّينا نفكر سوا.</h2><p id="subwelcome">اسأل بالعربية أو الإنجليزية. الإجابات تُولَّد بواسطة نموذج لغوي مستضاف سحابيًا.</p></section>
+<main id="messages" aria-live="polite"></main>
+<div class="composer-wrap"><form id="chatForm" class="composer"><textarea id="prompt" rows="1" placeholder="اكتب رسالتك هنا…" aria-label="Message"></textarea><button class="send" id="send" type="submit">إرسال ↗</button></form><div class="hint" id="hint">قد يخطئ الذكاء الاصطناعي؛ راجع المعلومات المهمة.</div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const translations={
+ ar:{tagline:"مساعد ذكي — استدلال سحابي",clear:"محادثة جديدة",checking:"جارٍ فحص الخدمة…",ready:"الخادم جاهز؛ لم يتم اختبار اتصال النموذج بعد.",configured:"تم إعداد الخدمة السحابية.",missing:"الخدمة تحتاج مفتاح API قبل تشغيل المحادثة.",welcome:"خلّينا نفكر سوا.",subwelcome:"اسأل بالعربية أو الإنجليزية. الإجابات تُولَّد بواسطة نموذج لغوي مستضاف سحابيًا.",placeholder:"اكتب رسالتك هنا…",send:"إرسال ↗",hint:"قد يخطئ الذكاء الاصطناعي؛ راجع المعلومات المهمة.",you:"أنت",assistant:"Kasr-1",working:"جارٍ التفكير…",error:"تعذّر الحصول على رد",network:"تعذّر الاتصال بالخادم. تأكد من تشغيل الخدمة وإعداد مفتاح API.",empty:"اكتب رسالة أولًا.",online:"الخادم متاح.",newChat:"بدأت محادثة جديدة."},
+ en:{tagline:"AI assistant · Cloud inference",clear:"New chat",checking:"Checking service…",ready:"Server is ready; model connectivity has not been tested yet.",configured:"Cloud service is configured.",missing:"An API key is required to enable chat.",welcome:"Let's think together.",subwelcome:"Ask in Arabic or English. Replies are generated by a hosted language model.",placeholder:"Write your message…",send:"Send ↗",hint:"AI can make mistakes. Verify important information.",you:"You",assistant:"Kasr-1",working:"Thinking…",error:"Could not get a response",network:"Could not connect to the server. Check that the service is running and its API key is configured.",empty:"Write a message first.",online:"Server is reachable.",newChat:"New conversation started."}
+};
+let lang="ar",history=[],busy=false;
+try{const saved=JSON.parse(localStorage.getItem("kasr1-history")||"[]");if(Array.isArray(saved))history=saved.filter(x=>x&&["user","assistant"].includes(x.role)&&typeof x.content==="string").slice(-30)}catch{}
+function t(k){return translations[lang][k]||k}
+function setLanguage(value){lang=value;document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";$("tagline").textContent=t("tagline");$("clear").textContent=t("clear");$("welcome").textContent=t("welcome");$("subwelcome").textContent=t("subwelcome");$("prompt").placeholder=t("placeholder");$("prompt").setAttribute("aria-label",t("placeholder"));$("send").textContent=t("send");$("hint").textContent=t("hint");renderHistory();checkStatus()}
+function addMessage(role,content,error=false){const wrap=document.createElement("article");wrap.className="msg "+role+(error?" error":"");const who=document.createElement("div");who.className="who";who.textContent=role==="user"?t("you"):t("assistant");const body=document.createElement("div");body.className="body";body.textContent=content;wrap.append(who,body);$("messages").append(wrap);$("messages").scrollTop=$("messages").scrollHeight;wrap.scrollIntoView({block:"nearest",behavior:"smooth"});return wrap}
+function renderHistory(){$("messages").replaceChildren();$("intro").style.display=history.length?"none":"block";history.forEach(m=>addMessage(m.role,m.content))}
+function saveHistory(){try{localStorage.setItem("kasr1-history",JSON.stringify(history.slice(-30)))}catch{}}
+async function checkStatus(){try{const r=await fetch("/api/status");const d=await r.json();$("dot").className="dot "+(d.api_key_configured?"ok":"");$("statusText").textContent=d.api_key_configured?t("configured"):t("missing")}catch{$("dot").className="dot";$("statusText").textContent=t("ready")}}
+$("language").addEventListener("change",e=>setLanguage(e.target.value));
+$("clear").addEventListener("click",()=>{history=[];saveHistory();renderHistory();$("prompt").focus()});
+$("chatForm").addEventListener("submit",async e=>{e.preventDefault();if(busy)return;const content=$("prompt").value.trim();if(!content){$("prompt").focus();return}history.push({role:"user",content});history=history.slice(-30);saveHistory();$("intro").style.display="none";addMessage("user",content);$("prompt").value="";busy=true;$("send").disabled=true;const pending=addMessage("assistant",t("working"));
+try{const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history})});const data=await response.json();if(!response.ok)throw new Error(data.detail||t("network"));if(typeof data.response!=="string"||!data.response.trim())throw new Error(t("network"));pending.querySelector(".body").textContent=data.response;history.push({role:"assistant",content:data.response});history=history.slice(-30);saveHistory()}
+catch(err){pending.classList.add("error");pending.querySelector(".who").textContent=t("error");pending.querySelector(".body").textContent=err.message||t("network");history.pop();saveHistory()}
+finally{busy=false;$("send").disabled=false;$("prompt").focus()}});
+$("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chatForm").requestSubmit()}});
+setLanguage("ar");renderHistory();
+</script>
+</body>
+</html>
