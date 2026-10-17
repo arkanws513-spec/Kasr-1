@@ -64,20 +64,24 @@ def encode_pair(tokenizer: KaserTokenizer, prompt: str, response: str, block_siz
 @torch.no_grad()
 def response_loss(model, tokenizer, pairs, device, limit=128):
     """Mean response-only token loss on held-out examples; does not update weights."""
+    was_training = model.training
     model.eval()
     losses = []
-    for prompt, response in pairs[:limit]:
-        p, r = encode_pair(tokenizer, prompt, response, model.config.block_size)
-        full = torch.tensor([p + r], dtype=torch.long, device=device)
-        inputs, targets = full[:, :-1], full[:, 1:].clone()
-        targets[:, :len(p) - 1] = -100
-        if inputs.size(1) > model.config.block_size:
-            inputs = inputs[:, -model.config.block_size:]
-            targets = targets[:, -model.config.block_size:]
-        _, loss = model(inputs, targets)
-        if loss is not None and torch.isfinite(loss):
-            losses.append(float(loss.cpu()))
-    return sum(losses) / len(losses) if losses else float("nan")
+    try:
+        for prompt, response in pairs[:limit]:
+            p, r = encode_pair(tokenizer, prompt, response, model.config.block_size)
+            full = torch.tensor([p + r], dtype=torch.long, device=device)
+            inputs, targets = full[:, :-1], full[:, 1:].clone()
+            targets[:, :len(p) - 1] = -100
+            if inputs.size(1) > model.config.block_size:
+                inputs = inputs[:, -model.config.block_size:]
+                targets = targets[:, -model.config.block_size:]
+            _, loss = model(inputs, targets)
+            if loss is not None and torch.isfinite(loss):
+                losses.append(float(loss.cpu()))
+        return sum(losses) / len(losses) if losses else float("nan")
+    finally:
+        model.train(was_training)
 
 
 def main():
