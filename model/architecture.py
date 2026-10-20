@@ -265,6 +265,7 @@ class KaserCoreEngine(nn.Module):
         top_k: int = 40,
         top_p: float = 0.9,
         repetition_penalty: float = 1.08,
+        eos_token_id: Optional[int] = 2,
     ) -> torch.Tensor:
         if idx.ndim != 2 or idx.size(1) == 0:
             raise ValueError("generate() expects non-empty input ids shaped [batch, sequence]")
@@ -287,12 +288,20 @@ class KaserCoreEngine(nn.Module):
             )
             logits = logits[:, -1, :].float()
 
+            finished = torch.zeros(idx.size(0), dtype=torch.bool, device=idx.device)
             for step in range(max_new_tokens):
                 next_token = self._sample_next(
                     logits, idx, temperature, top_k, top_p, repetition_penalty
                 )
+                if eos_token_id is not None:
+                    next_token = torch.where(
+                        finished.unsqueeze(-1),
+                        torch.full_like(next_token, eos_token_id),
+                        next_token,
+                    )
+                    finished |= next_token.squeeze(-1).eq(eos_token_id)
                 idx = torch.cat((idx, next_token), dim=1)
-                if step + 1 == max_new_tokens:
+                if (eos_token_id is not None and finished.all()) or step + 1 == max_new_tokens:
                     break
 
                 # Keep a bounded rolling cache, then append the newest token.
