@@ -46,7 +46,7 @@ def check_access(authorization):
 @app.get("/api/status")
 @app.get("/status")
 def status():
-    return {"service":"kaser-1","model_loaded":model is not None,"trained_weights_available":model is not None,"access_token_required":bool(ACCESS_TOKEN),"access_token_configured":True,"api_key_configured":model is not None,"device":DEVICE,"checkpoint":CHECKPOINT,"detail":load_error}
+    return {"service":"kaser-1","model_loaded":model is not None,"trained_weights_available":model is not None,"access_token_required":bool(ACCESS_TOKEN),"access_token_configured":bool(ACCESS_TOKEN),"api_key_configured":model is not None,"device":DEVICE,"checkpoint":CHECKPOINT,"detail":load_error}
 @app.post("/api/chat")
 @app.post("/chat")
 def chat(body: ChatRequest, authorization: Optional[str] = Header(default=None)):
