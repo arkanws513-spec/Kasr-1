@@ -25,6 +25,12 @@ class SkillRegistry:
         name, action = name.strip(), action.strip()
         if not name or not action: raise ValueError("name and action are required")
         if action not in ALLOWED_ACTIONS: raise ValueError(f"action not allowlisted: {action}")
+        if len(name) > 80:
+            raise ValueError("name must be 80 characters or fewer")
+        if len(description) > 500:
+            raise ValueError("description must be 500 characters or fewer")
+        if not isinstance(config or {}, dict):
+            raise ValueError("config must be an object")
         config = config or {}
         with self._connect() as db:
             row = db.execute("SELECT COALESCE(MAX(version),0) v FROM skills WHERE name=?", (name,)).fetchone()
