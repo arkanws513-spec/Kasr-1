@@ -22,7 +22,7 @@ class SkillRegistry:
     """Versioned skill registry using SQLite locally or PostgreSQL when configured."""
 
     def __init__(self, db_path="kasr.db"):
-        self.database_url = os.environ.get("KASR_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        self.database_url = os.environ.get("KASR_DATABASE_URL")
         self.backend = "postgres" if self.database_url and self.database_url.startswith(("postgres://", "postgresql://")) else "sqlite"
         self.db_path = str(db_path)
         if self.backend == "sqlite" and self.db_path != ":memory:":
