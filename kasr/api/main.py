@@ -17,7 +17,12 @@ runner = Runner()
 app = FastAPI(title="KASR-1 API", version="0.1.0", description="Local-first, allowlisted skill runner")
 origins = [x.strip() for x in os.environ.get("KASR_CORS_ORIGINS", "").split(",") if x.strip()]
 if origins:
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET","POST"], allow_headers=["Content-Type"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
 
 class SkillCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)

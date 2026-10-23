@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: kasr-1
+Version: 0.1.0
+Summary: Local-first verifiable skill-learning prototype
+Requires-Python: >=3.10
+Provides-Extra: test
+Requires-Dist: pytest>=7; extra == "test"
