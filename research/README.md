@@ -27,6 +27,7 @@
 ## الملفات
 
 - `landscape.md`: المشاريع المرجعية، نقاط القوة والقيود والتراخيص التي يلزم مراجعتها.
+- `additional-projects.md`: مراجعة إضافية لـ Hermes Agent وAutoResearchClaw.
 - `architecture.md`: المكونات وتدفق البيانات والعقود المقترحة.
 - `roadmap.md`: مراحل قابلة للتسليم والاختبار.
 - `safety-and-evaluation.md`: حدود الصلاحيات، التحقق، القياس والتراجع.
