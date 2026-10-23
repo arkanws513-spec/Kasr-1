@@ -1,47 +1,37 @@
-# Kaser-1 — from-scratch language-model core
+# KASR-1 — Learn, Execute, Improve
 
-Kaser-1 is a small decoder-only Transformer built from random initialization. It uses a byte-level UTF-8 tokenizer, RMSNorm, RoPE, causal self-attention and SwiGLU. It does not download a pretrained model or call a third-party model API.
+**الهدف:** بناء وكيل ذكاء اصطناعي عربي/إنجليزي يتعلم المهام التي نضيفها إليه، ينفذها باستخدام أدوات محددة، ثم يقترح تحسينات ويختبرها قبل اعتمادها.
 
-## Honest current status
+> الحالة الحالية: مرحلة إعادة التأسيس والبحث المعماري. لا يوجد ادعاء بأن النظام جاهز للتنفيذ العام أو أنه يتعلم أوزان النموذج تلقائيًا.
 
-- The model code and training/inference pipeline are implemented.
-- A new checkout has no trained weights. Until you train on a substantial, lawful Arabic/English corpus, answers will not be useful and the API intentionally returns HTTP 503 instead of pretending a fixed string is model output.
-- The included compact configuration is a development baseline, not GPT-3/Gemini-level capacity. Byte-level tokenization is simple and robust for Arabic/English but less compute-efficient than a trained subword tokenizer.
-- Conversation memory stores contextual notes; it does not itself update model weights. Feedback must be exported and used in a later supervised training run.
+## الفكرة الأساسية
 
-## Run locally
+1. **اكتساب المهارة:** تحويل وصف المهمة والأمثلة إلى Skill موثقة وقابلة للاختبار.
+2. **التنفيذ:** اختيار المهارة المناسبة، تشغيل خطواتها ضمن صلاحيات محدودة، والتحقق من النتيجة.
+3. **الابتكار:** اقتراح بدائل أو تعديلات، وتجربتها في بيئة معزولة على مهام اختبار.
+4. **التعلّم من الأدلة:** ترقية المهارات فقط عندما تتحسن النتائج المقاسة، مع حفظ المصدر والإصدارات وإمكانية الرجوع.
+5. **تطوير النموذج لاحقًا:** مسار منفصل لتدريب أوزان KASR-1 عند توفر بيانات قانونية وموارد حوسبة كافية.
 
-Python 3.11+ is recommended. Install dependencies:
+## المبادئ غير القابلة للتفاوض
 
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
+- لا مفاتيح API مدفوعة ولا اعتماد إلزامي على نموذج خارجي.
+- لا ندّعي أن نموذجًا عشوائي الأوزان يقدم إجابات مفيدة قبل تدريبه.
+- لا ينفذ النظام أوامر نظام التشغيل أو يغيّر كوده الإنتاجي بلا قيود وموافقة.
+- التقييم المستقل أهم من ثقة الوكيل في نفسه.
+- لا تُحذف الخبرات أو الإصدارات القديمة عند التحسين؛ يجب أن تكون قابلة للاستعادة.
+- يبدأ المنتج صغيرًا، ويمكن تشغيل واجهته من الهاتف، بينما قد يحتاج التدريب والتشغيل الثقيل إلى حاسوب أو خادم منفصل.
 
-Place UTF-8 .txt, .md, or .jsonl training sources under data/raw/. Use public-domain, permissively licensed, or personally authored data; keep source/license notes. Convert them to one corpus:
+## خريطة الوثائق
 
-    python -m training.dataset_prep --input data/raw --output data/corpus.txt
+- [بحث المشاريع المشابهة](research/landscape.md)
+- [التصميم المعماري](research/architecture.md)
+- [خطة التنفيذ المرحلية](research/roadmap.md)
+- [السلامة والتقييم](research/safety-and-evaluation.md)
+- [المراجع وروابط المصادر](research/references.md)
 
-Train from random initialization (this can take a long time on CPU):
+## حالة التنفيذ
 
-    python -m training.train --data data/corpus.txt --steps 3000 --batch-size 8 --block-size 256
+هذه إعادة تأسيس للمستودع. ملفات المشروع السابق محفوظة في فرع:
+`archive/pre-rebuild-2026-10-23`
 
-The training script periodically saves checkpoints/kaser1.pt, including model configuration and optimizer state. Resume with --resume. Prepare prompt/response examples in JSONL, then run `python -m training.pipeline --corpus data/corpus.txt --conversations data/conversations.jsonl --base-steps 3000 --sft-steps 1000` to execute both stages in order. The pipeline stops if either stage fails. See training/SFT_GUIDE.md for data formats and resume instructions. More data and longer training are necessary for coherent dialogue; lower training loss alone does not prove conversational quality.
-
-Start the inference service after a checkpoint exists:
-
-    uvicorn inference.server:app --host 0.0.0.0 --port 8000
-
-Check GET /api/status, then send POST /api/chat with JSON containing messages, e.g. {"messages":[{"role":"user","content":"اشرح الجاذبية ببساطة"}]}. If KASER_ACCESS_TOKEN is set, send Authorization: Bearer <token>; otherwise local development does not require an access token. Never commit production secrets.
-
-## Model layout
-
-- core/config.py: explicit model configuration
-- core/tokenizer.py: dependency-free byte tokenizer (IDs 0–258)
-- model/architecture.py: causal Transformer, RoPE and SwiGLU
-- core/memory.py and core/kernel.py: persistent episodic memory and response orchestration
-- training/: corpus preparation, next-token training and held-out loss evaluation
-- inference/server.py: FastAPI service for local checkpoint inference
-
-## Important deployment note
-
-The static frontend on Vercel and the PyTorch model server are separate workloads. Vercel static hosting alone does not provide persistent GPU memory or a durable PyTorch model process. Run this API on a Python-capable host with enough RAM/CPU (or GPU), persist checkpoints/ and data/, then configure the frontend API base URL. Do not put model weights or private keys in the public public/ directory.
+لن نعتبر أي ميزة مكتملة إلا بعد وجود كود قابل للفحص واختبار ناجح موثق.
