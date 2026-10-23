@@ -10,7 +10,7 @@ from kasr.engine.runner import Runner
 from kasr.evaluation.verifier import verify_cases
 from kasr.skills.registry import SkillRegistry
 
-DB_PATH = os.environ.get("KASR_DB_PATH", "kasr.db")
+DB_PATH = os.environ.get("KASR_DB_PATH", "/tmp/kasr.db" if os.environ.get("VERCEL") else "kasr.db")
 ENABLE_WRITES = os.environ.get("KASR_ENABLE_WRITES", "false").lower() in {"1","true","yes"}
 registry = SkillRegistry(DB_PATH)
 runner = Runner()
