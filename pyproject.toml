@@ -9,5 +9,7 @@ requires-python = ">=3.10"
 dependencies = []
 [project.optional-dependencies]
 test = ["pytest>=7"]
+[tool.setuptools.packages.find]
+include = ["kasr*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
