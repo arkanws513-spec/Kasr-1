@@ -1,37 +1,37 @@
-# KASR-1 — Learn, Execute, Improve
+# KASR-1
 
-**الهدف:** بناء وكيل ذكاء اصطناعي عربي/إنجليزي يتعلم المهام التي نضيفها إليه، ينفذها باستخدام أدوات محددة، ثم يقترح تحسينات ويختبرها قبل اعتمادها.
+KASR-1 is a local-first prototype for versioned skills with evidence-based verification. This milestone uses deterministic allowlisted actions. It does not yet claim general intelligence, arbitrary-task learning, or self-modifying model weights.
 
-> الحالة الحالية: مرحلة إعادة التأسيس والبحث المعماري. لا يوجد ادعاء بأن النظام جاهز للتنفيذ العام أو أنه يتعلم أوزان النموذج تلقائيًا.
+## Included
+- SQLite registry with immutable skill versions.
+- Allowlisted text/data transformations; no eval, shell, or arbitrary Python execution.
+- Independent expected-output verifier with passed/failed/inconclusive outcomes.
+- Candidate evaluation and explicit-only promotion.
+- No paid API keys or runtime dependencies for the core package.
 
-## الفكرة الأساسية
+## Quick start
+Requires Python 3.10+.
 
-1. **اكتساب المهارة:** تحويل وصف المهمة والأمثلة إلى Skill موثقة وقابلة للاختبار.
-2. **التنفيذ:** اختيار المهارة المناسبة، تشغيل خطواتها ضمن صلاحيات محدودة، والتحقق من النتيجة.
-3. **الابتكار:** اقتراح بدائل أو تعديلات، وتجربتها في بيئة معزولة على مهام اختبار.
-4. **التعلّم من الأدلة:** ترقية المهارات فقط عندما تتحسن النتائج المقاسة، مع حفظ المصدر والإصدارات وإمكانية الرجوع.
-5. **تطوير النموذج لاحقًا:** مسار منفصل لتدريب أوزان KASR-1 عند توفر بيانات قانونية وموارد حوسبة كافية.
+~~~bash
+python -m venv .venv
+pip install -e '.[test]'
+pytest
+~~~
 
-## المبادئ غير القابلة للتفاوض
+Example:
 
-- لا مفاتيح API مدفوعة ولا اعتماد إلزامي على نموذج خارجي.
-- لا ندّعي أن نموذجًا عشوائي الأوزان يقدم إجابات مفيدة قبل تدريبه.
-- لا ينفذ النظام أوامر نظام التشغيل أو يغيّر كوده الإنتاجي بلا قيود وموافقة.
-- التقييم المستقل أهم من ثقة الوكيل في نفسه.
-- لا تُحذف الخبرات أو الإصدارات القديمة عند التحسين؛ يجب أن تكون قابلة للاستعادة.
-- يبدأ المنتج صغيرًا، ويمكن تشغيل واجهته من الهاتف، بينما قد يحتاج التدريب والتشغيل الثقيل إلى حاسوب أو خادم منفصل.
+~~~python
+from kasr.skills.registry import SkillRegistry
+from kasr.engine.runner import Runner
+registry = SkillRegistry('kasr.db')
+skill = registry.add('uppercase', 'text.upper')
+print(Runner().run(skill, 'Hello, Kasr!'))
+~~~
 
-## خريطة الوثائق
+Supported actions: text.upper, text.lower, text.strip, json.pretty, csv.to_json.
 
-- [بحث المشاريع المشابهة](research/landscape.md)
-- [التصميم المعماري](research/architecture.md)
-- [خطة التنفيذ المرحلية](research/roadmap.md)
-- [السلامة والتقييم](research/safety-and-evaluation.md)
-- [المراجع وروابط المصادر](research/references.md)
+## Safety and limitations
+No user-supplied code is executed, and this version contains no LLM. Saved skills are reusable procedures selected from a strict allowlist. Any future model adapter must remain optional and must not bypass validation or tool permissions. Do not expose a future execution service to untrusted network clients without authentication and isolation.
 
-## حالة التنفيذ
-
-هذه إعادة تأسيس للمستودع. ملفات المشروع السابق محفوظة في فرع:
-`archive/pre-rebuild-2026-10-23`
-
-لن نعتبر أي ميزة مكتملة إلا بعد وجود كود قابل للفحص واختبار ناجح موثق.
+## Status
+Milestone 0.1 core package and tests have been added. Test results must only be claimed after running tests in a real environment. See research/ for the design landscape and roadmap.
